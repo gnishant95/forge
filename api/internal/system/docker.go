@@ -29,11 +29,11 @@ type ContainerStats struct {
 
 // SystemInfo holds overall system information
 type SystemInfo struct {
-	Timestamp       string                    `json:"timestamp"`
+	Timestamp       string                     `json:"timestamp"`
 	Containers      map[string]*ContainerStats `json:"containers"`
-	TotalContainers int                       `json:"total_containers"`
-	RunningCount    int                       `json:"running_count"`
-	Recommendations []string                  `json:"recommendations,omitempty"`
+	TotalContainers int                        `json:"total_containers"`
+	RunningCount    int                        `json:"running_count"`
+	Recommendations []string                   `json:"recommendations,omitempty"`
 }
 
 // DockerClient communicates with Docker via socket
@@ -113,13 +113,18 @@ func (c *DockerClient) GetSystemInfo(ctx context.Context) (*SystemInfo, error) {
 	}
 
 	for _, container := range containers {
+		// Skip containers with no names
+		if len(container.Names) == 0 {
+			continue
+		}
+
 		name := strings.TrimPrefix(container.Names[0], "/")
-		
+
 		// Only include forge containers
 		if !strings.HasPrefix(name, "forge-") {
 			continue
 		}
-		
+
 		info.TotalContainers++
 
 		stats := &ContainerStats{
@@ -143,7 +148,7 @@ func (c *DockerClient) GetSystemInfo(ctx context.Context) (*SystemInfo, error) {
 		// Get live stats if container is running
 		if container.State == "running" {
 			info.RunningCount++
-			
+
 			liveStats, err := c.getContainerStats(ctx, container.ID)
 			if err == nil {
 				// Calculate CPU percentage
@@ -260,4 +265,3 @@ func formatDuration(d time.Duration) string {
 	}
 	return fmt.Sprintf("%dm", minutes)
 }
-

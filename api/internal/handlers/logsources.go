@@ -2,11 +2,15 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/forge/api/internal/logsources"
 )
+
+// maxRequestBodySize is the maximum allowed size for request bodies (1MB)
+const maxRequestBodySize = 1 << 20
 
 // LogSourcesHandler handles log source management requests
 type LogSourcesHandler struct {
@@ -73,8 +77,16 @@ func (h *LogSourcesHandler) getSource(w http.ResponseWriter, r *http.Request, na
 
 // addSource adds a new log source
 func (h *LogSourcesHandler) addSource(w http.ResponseWriter, r *http.Request) {
+	// Limit request body size to prevent oversized payloads
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+
 	var source logsources.LogSource
 	if err := json.NewDecoder(r.Body).Decode(&source); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -148,4 +160,3 @@ func (h *LogSourcesHandler) reloadPromtail(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
-

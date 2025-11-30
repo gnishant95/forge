@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/forge/api/internal/logger"
 	"github.com/forge/api/internal/system"
 )
 
@@ -28,11 +29,11 @@ func (h *SystemHandler) GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 
 	info, err := h.docker.GetSystemInfo(r.Context())
 	if err != nil {
-		http.Error(w, "Failed to get system info: "+err.Error(), http.StatusInternalServerError)
+		logger.Error("Failed to get system info", err)
+		http.Error(w, "Failed to get system info", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(info)
 }
-

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -28,7 +29,7 @@ func NewForgeHandler(startTime time.Time, mysql *db.MySQLClient, redis *cache.Re
 
 // ServiceHealth represents the health of a single service
 type ServiceHealth struct {
-	Status  string `json:"status"`  // "healthy", "unhealthy", "unknown"
+	Status  string `json:"status"` // "healthy", "unhealthy", "unknown"
 	Message string `json:"message,omitempty"`
 }
 
@@ -149,6 +150,10 @@ func HealthREST(h *ForgeHandler) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("failed to encode health response: %v", err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
 	}
 }
