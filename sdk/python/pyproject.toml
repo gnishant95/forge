@@ -28,7 +28,7 @@ dependencies = [
 sqlalchemy = ["sqlalchemy>=2.0.0", "pymysql>=1.0.0"]
 redis = ["redis>=4.0.0"]
 all = ["sqlalchemy>=2.0.0", "pymysql>=1.0.0", "redis>=4.0.0"]
-dev = ["pytest>=7.0.0", "pytest-cov>=4.0.0"]
+dev = ["pytest>=7.0.0", "pytest-cov>=4.0.0", "httpx>=0.25.0"]
 
 [project.urls]
 Homepage = "https://github.com/forge/forge"
@@ -38,4 +38,31 @@ Repository = "https://github.com/forge/forge"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["forge*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "e2e: marks tests as end-to-end integration tests",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["forge"]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
 

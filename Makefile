@@ -1,7 +1,7 @@
 # Forge Makefile
 # Run 'make help' for available commands
 
-.PHONY: help start stop restart health logs clean setup
+.PHONY: help start stop restart health logs clean setup test test-fast test-e2e test-cov
 
 # Colors
 RED    := \033[0;31m
@@ -48,6 +48,12 @@ help:
 	@echo "$(GREEN)Database:$(NC)"
 	@echo "  $(YELLOW)make shell-mysql$(NC)  Open MySQL CLI"
 	@echo "  $(YELLOW)make shell-redis$(NC)  Open Redis CLI"
+	@echo ""
+	@echo "$(GREEN)Testing:$(NC)"
+	@echo "  $(YELLOW)make test$(NC)      Run all SDK tests"
+	@echo "  $(YELLOW)make test-fast$(NC) Run tests (skip slow ones)"
+	@echo "  $(YELLOW)make test-e2e$(NC)  Run end-to-end tests only"
+	@echo "  $(YELLOW)make test-cov$(NC)  Run tests with coverage report"
 	@echo ""
 	@echo "$(GREEN)Cleanup:$(NC)"
 	@echo "  $(YELLOW)make clean$(NC)     Stop and remove all containers/volumes"
@@ -198,6 +204,31 @@ shell-mysql:
 
 shell-redis:
 	@docker exec -it forge-redis redis-cli
+
+# ==============================================================================
+# TESTING
+# ==============================================================================
+
+test:
+	@echo "$(BLUE)Running SDK tests...$(NC)"
+	@cd sdk/python && pip install -q -e ".[all,dev]" && pytest tests/ -v
+	@echo "$(GREEN)Tests complete.$(NC)"
+
+test-fast:
+	@echo "$(BLUE)Running fast tests (skipping slow)...$(NC)"
+	@cd sdk/python && pip install -q -e ".[all,dev]" && pytest tests/ -v -m "not slow"
+	@echo "$(GREEN)Tests complete.$(NC)"
+
+test-e2e:
+	@echo "$(BLUE)Running end-to-end tests...$(NC)"
+	@cd sdk/python && pip install -q -e ".[all,dev]" && pytest tests/ -v -m "e2e"
+	@echo "$(GREEN)Tests complete.$(NC)"
+
+test-cov:
+	@echo "$(BLUE)Running tests with coverage...$(NC)"
+	@cd sdk/python && pip install -q -e ".[all,dev]" && pytest tests/ -v --cov=forge --cov-report=html --cov-report=term
+	@echo ""
+	@echo "$(GREEN)Coverage report: sdk/python/htmlcov/index.html$(NC)"
 
 # ==============================================================================
 # CLEANUP
