@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package forge.v1;
+
+option go_package = "github.com/forge/api/gen/forge/v1;forgev1";
+
+// CacheService provides cache operations
+service CacheService {
+  // Get a value
+  rpc Get(GetRequest) returns (GetResponse);
+  // Set a value
+  rpc Set(SetRequest) returns (SetResponse);
+  // Delete a value
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  // Get connection info for external clients
+  rpc GetInfo(CacheInfoRequest) returns (CacheInfoResponse);
+}
+
+message GetRequest {
+  string key = 1;
+  string type = 2;  // "redis" (default)
+}
+
+message GetResponse {
+  string value = 1;
+  bool found = 2;
+}
+
+message SetRequest {
+  string key = 1;
+  string value = 2;
+  int64 ttl_seconds = 3;  // 0 = no expiry
+  string type = 4;
+}
+
+message SetResponse {
+  bool ok = 1;
+}
+
+message DeleteRequest {
+  string key = 1;
+  string type = 2;
+}
+
+message DeleteResponse {
+  bool deleted = 1;
+}
+
+message CacheInfoRequest {
+  string type = 1;
+}
+
+message CacheInfoResponse {
+  string host = 1;
+  int32 port = 2;
+  string password = 3;
+  string url = 4;  // redis://host:port
+}
+

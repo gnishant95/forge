@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package forge.v1;
+
+option go_package = "github.com/forge/api/gen/forge/v1;forgev1";
+
+// DatabaseService provides database operations
+service DatabaseService {
+  // Execute a SELECT query
+  rpc Query(QueryRequest) returns (QueryResponse);
+  // Execute INSERT/UPDATE/DELETE
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+  // Get connection info for external clients (SQLAlchemy)
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+}
+
+message QueryRequest {
+  string sql = 1;
+  repeated string params = 2;
+  string database = 3;  // optional, uses default if empty
+  string type = 4;      // "mysql" (default), future: "postgres"
+}
+
+message QueryResponse {
+  repeated Row rows = 1;
+  repeated string columns = 2;
+  int64 row_count = 3;
+}
+
+message Row {
+  map<string, string> values = 1;
+}
+
+message ExecuteRequest {
+  string sql = 1;
+  repeated string params = 2;
+  string database = 3;
+  string type = 4;
+}
+
+message ExecuteResponse {
+  int64 rows_affected = 1;
+  int64 last_insert_id = 2;
+}
+
+message GetInfoRequest {
+  string type = 1;  // "mysql" (default)
+}
+
+message GetInfoResponse {
+  string host = 1;
+  int32 port = 2;
+  string user = 3;
+  string password = 4;
+  string url = 5;  // Full connection URL for SQLAlchemy
+}
+

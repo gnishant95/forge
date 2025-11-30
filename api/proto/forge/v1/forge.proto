@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package forge.v1;
+
+option go_package = "github.com/forge/api/gen/forge/v1;forgev1";
+
+// ForgeService provides system-level operations
+service ForgeService {
+  // Health check
+  rpc Health(HealthRequest) returns (HealthResponse);
+  // Detailed system info
+  rpc Info(InfoRequest) returns (InfoResponse);
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  bool ok = 1;
+}
+
+message InfoRequest {}
+
+message InfoResponse {
+  string version = 1;
+  string uptime = 2;
+  map<string, ServiceStatus> services = 3;
+}
+
+message ServiceStatus {
+  string status = 1;  // "running", "stopped", "error"
+  string message = 2;
+  map<string, string> details = 3;
+}
+

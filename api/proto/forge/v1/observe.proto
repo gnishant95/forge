@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package forge.v1;
+
+option go_package = "github.com/forge/api/gen/forge/v1;forgev1";
+
+// ObserveService provides observability operations
+service ObserveService {
+  // Push a log entry
+  rpc Log(LogRequest) returns (LogResponse);
+  // Push a metric
+  rpc Metric(MetricRequest) returns (MetricResponse);
+  // Push a trace span
+  rpc Trace(TraceRequest) returns (TraceResponse);
+}
+
+message LogRequest {
+  string message = 1;
+  string level = 2;           // "debug", "info", "warn", "error"
+  map<string, string> labels = 3;
+  int64 timestamp_ms = 4;     // optional, uses current time if 0
+}
+
+message LogResponse {
+  bool ok = 1;
+}
+
+message MetricRequest {
+  string name = 1;
+  double value = 2;
+  string type = 3;            // "counter", "gauge", "histogram"
+  map<string, string> labels = 4;
+}
+
+message MetricResponse {
+  bool ok = 1;
+}
+
+message TraceRequest {
+  string name = 1;
+  string trace_id = 2;
+  string span_id = 3;
+  string parent_span_id = 4;
+  int64 start_time_ms = 5;
+  int64 duration_ms = 6;
+  map<string, string> attributes = 7;
+}
+
+message TraceResponse {
+  bool ok = 1;
+  string trace_id = 2;
+  string span_id = 3;
+}
+
