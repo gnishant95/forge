@@ -330,6 +330,63 @@ func OpenAPISpec(w http.ResponseWriter, r *http.Request) {
           }
         }
       }
+    },
+    "/routes": {
+      "get": {
+        "summary": "List all dynamic routes",
+        "tags": ["Routes"],
+        "responses": {
+          "200": {
+            "description": "List of routes"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a dynamic route",
+        "tags": ["Routes"],
+        "description": "Creates or updates a route and reloads nginx",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string", "example": "my-backend"},
+                  "path": {"type": "string", "example": "/myapp/"},
+                  "target": {"type": "string", "example": "http://my-service:8000"},
+                  "strip_prefix": {"type": "boolean"}
+                },
+                "required": ["name", "path", "target"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {"description": "Route added and nginx reloaded"}
+        }
+      }
+    },
+    "/routes/{name}": {
+      "delete": {
+        "summary": "Delete a route",
+        "tags": ["Routes"],
+        "parameters": [
+          {"name": "name", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Route deleted"}
+        }
+      }
+    },
+    "/routes/reload": {
+      "post": {
+        "summary": "Force nginx reload",
+        "tags": ["Routes"],
+        "responses": {
+          "200": {"description": "nginx reloaded"}
+        }
+      }
     }
   }
 }`

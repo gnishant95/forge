@@ -29,7 +29,7 @@ FROM alpine:3.19
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates curl
+RUN apk add --no-cache ca-certificates curl docker-cli
 
 COPY --from=builder /build/forge .
 

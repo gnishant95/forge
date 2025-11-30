@@ -11,6 +11,7 @@ import (
 	"github.com/forge/api/internal/db"
 	"github.com/forge/api/internal/handlers"
 	"github.com/forge/api/internal/observe"
+	"github.com/forge/api/internal/routes"
 	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -34,6 +35,14 @@ func main() {
 	}
 	
 	lokiClient := observe.NewLokiClient()
+	
+	// Initialize routes manager
+	routesConfigPath := getEnv("ROUTES_CONFIG", "/app/data/routes/routes.yaml")
+	nginxDynamicConf := getEnv("NGINX_DYNAMIC_CONF", "/app/data/routes/routes.conf")
+	routesManager, err := routes.NewManager(routesConfigPath, nginxDynamicConf)
+	if err != nil {
+		log.Printf("Warning: Routes manager init failed: %v", err)
+	}
 	
 	// Create handlers
 	forgeHandler := handlers.NewForgeHandler(startTime, mysqlClient, redisClient)
@@ -60,6 +69,13 @@ func main() {
 	mux.HandleFunc("/api/v1/logs", handlers.LogsREST(observeHandler))
 	mux.HandleFunc("/api/v1/metrics", handlers.MetricsREST(observeHandler))
 	mux.HandleFunc("/api/v1/traces", handlers.TracesREST(observeHandler))
+	
+	// Routes management (dynamic nginx routes)
+	if routesManager != nil {
+		routesHandler := handlers.NewRoutesHandler(routesManager)
+		mux.HandleFunc("/api/v1/routes", routesHandler.HandleRoutes)
+		mux.HandleFunc("/api/v1/routes/", routesHandler.HandleRoutes)
+	}
 	
 	// Swagger docs
 	mux.HandleFunc("/docs", handlers.SwaggerUI)

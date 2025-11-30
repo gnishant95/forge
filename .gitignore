@@ -89,9 +89,11 @@ ehthumbs.db
 # ------------------------------------------------------------------------------
 # Data directories (if running locally without Docker)
 # ------------------------------------------------------------------------------
-data/
 *.db
 *.sqlite
+
+# Keep data/routes for initial config but ignore runtime changes
+# data/routes/ is tracked for initial setup
 
 # ------------------------------------------------------------------------------
 # Node (in case of future frontend)
