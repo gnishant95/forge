@@ -27,8 +27,14 @@ help:
 	@echo "  $(YELLOW)make start$(NC)     Start all services"
 	@echo "  $(YELLOW)make stop$(NC)      Stop all services"
 	@echo ""
+	@echo "$(GREEN)Profiles (enable/disable services):$(NC)"
+	@echo "  $(YELLOW)make start PROFILE=full$(NC)        All services (default)"
+	@echo "  $(YELLOW)make start PROFILE=db,cache$(NC)    Only database + cache"
+	@echo "  $(YELLOW)make start PROFILE=db$(NC)          Only MySQL"
+	@echo ""
 	@echo "$(GREEN)Status:$(NC)"
-	@echo "  $(YELLOW)make health$(NC)    Check service health"
+	@echo "  $(YELLOW)make health$(NC)    Quick health check"
+	@echo "  $(YELLOW)make status$(NC)    Detailed system status (CPU, memory, etc.)"
 	@echo "  $(YELLOW)make logs$(NC)      View logs (all services)"
 	@echo "  $(YELLOW)make logs-api$(NC)  View logs for specific service"
 	@echo "  $(YELLOW)make ps$(NC)        Show running containers"
@@ -53,6 +59,9 @@ help:
 # MAIN COMMANDS
 # ==============================================================================
 
+# Default profile - runs all services. Override with: make start PROFILE=db,cache
+PROFILE ?= full
+
 setup:
 	@echo ""
 	@echo "$(BLUE)╔═══════════════════════════════════════════════════════════════╗$(NC)"
@@ -63,10 +72,10 @@ setup:
 	@cd api && go mod tidy 2>/dev/null || echo "  (skipped - will build in Docker)"
 	@echo ""
 	@echo "$(YELLOW)→ Pulling Docker images (this may take a few minutes)...$(NC)"
-	@docker-compose pull
+	@docker-compose --profile $(PROFILE) pull
 	@echo ""
 	@echo "$(YELLOW)→ Building Forge API...$(NC)"
-	@docker-compose build
+	@docker-compose --profile $(PROFILE) build
 	@echo ""
 	@echo "$(GREEN)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo "$(GREEN)  Setup complete! Run 'make start' to begin.$(NC)"
@@ -75,8 +84,8 @@ setup:
 
 start: _check-ports
 	@echo ""
-	@echo "$(BLUE)Starting Forge...$(NC)"
-	@docker-compose up -d --build
+	@echo "$(BLUE)Starting Forge (profile: $(PROFILE))...$(NC)"
+	@docker-compose --profile $(PROFILE) up -d --build
 	@echo ""
 	@echo "$(YELLOW)Waiting for services to start...$(NC)"
 	@sleep 10
@@ -90,7 +99,7 @@ start: _check-ports
 
 stop:
 	@echo "$(YELLOW)Stopping Forge...$(NC)"
-	@docker-compose down
+	@docker-compose --profile $(PROFILE) down
 	@echo "$(GREEN)Stopped.$(NC)"
 
 restart: stop start
@@ -112,14 +121,51 @@ rebuild-%:
 health:
 	@echo ""
 	@echo "$(BLUE)Service Health:$(NC)"
-	@printf "  nginx:      " && curl -sf http://localhost/ >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
-	@printf "  API:        " && curl -sf http://localhost:8080/api/v1/health >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
-	@printf "  MySQL:      " && docker exec forge-mysql mysqladmin ping -h localhost --silent 2>/dev/null && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
-	@printf "  Redis:      " && docker exec forge-redis redis-cli ping 2>/dev/null | grep -q PONG && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
-	@printf "  Grafana:    " && curl -sf http://localhost:3000/api/health >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
-	@printf "  Prometheus: " && curl -sf http://localhost:9090/-/ready >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
-	@printf "  Loki:       " && curl -sf http://localhost:3100/ready >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗ (takes ~20s)$(NC)"
-	@printf "  Tempo:      " && curl -sf http://localhost:3200/ready >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗ (takes ~20s)$(NC)"
+	@echo ""
+	@echo "  $(BOLD)Core:$(NC)"
+	@printf "    nginx:           " && curl -sf http://localhost/ >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    API:             " && curl -sf http://localhost:8080/api/v1/health >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    MySQL:           " && docker exec forge-mysql mysqladmin ping -h localhost --silent 2>/dev/null && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    Redis:           " && docker exec forge-redis redis-cli ping 2>/dev/null | grep -q PONG && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@echo ""
+	@echo "  $(BOLD)Observability:$(NC)"
+	@printf "    Grafana:         " && curl -sf http://localhost:3000/api/health >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    Prometheus:      " && curl -sf http://localhost:9090/-/ready >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    Loki:            " && curl -sf http://localhost:3100/ready >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    Tempo:           " && curl -sf http://localhost:3200/ready >/dev/null 2>&1 && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    Promtail:        " && docker inspect -f '{{.State.Running}}' forge-promtail 2>/dev/null | grep -q true && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@echo ""
+	@echo "  $(BOLD)Exporters:$(NC)"
+	@printf "    nginx-exporter:  " && docker inspect -f '{{.State.Running}}' forge-nginx-exporter 2>/dev/null | grep -q true && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    mysql-exporter:  " && docker inspect -f '{{.State.Running}}' forge-mysql-exporter 2>/dev/null | grep -q true && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@printf "    redis-exporter:  " && docker inspect -f '{{.State.Running}}' forge-redis-exporter 2>/dev/null | grep -q true && echo "$(GREEN)✓$(NC)" || echo "$(YELLOW)✗$(NC)"
+	@echo ""
+
+status:
+	@echo ""
+	@echo "$(BLUE)Forge Services:$(NC)"
+	@echo "───────────────────────────────────────────────────────────────────────────────────────────"
+	@printf "  %-18s %-12s %-7s %-22s %s\n" "SERVICE" "UPTIME" "CPU" "MEMORY" "ENDPOINT"
+	@echo "───────────────────────────────────────────────────────────────────────────────────────────"
+	@docker ps -a --filter "name=forge-" --format "{{.Names}}|{{.Status}}" | sort | while IFS='|' read name status; do \
+		svc=$$(echo "$$name" | sed 's/forge-//'); \
+		endpoint=$$(docker port $$name 2>/dev/null | head -1 | sed 's/.*-> //' | sed 's/0.0.0.0/localhost/' | sed 's/\[::\]:/localhost:/' || echo "-"); \
+		[ -z "$$endpoint" ] && endpoint="-"; \
+		if echo "$$status" | grep -q "^Up"; then \
+			uptime=$$(echo "$$status" | sed 's/Up //' | sed 's/ (healthy)//' | sed 's/ (unhealthy)//'); \
+			icon="$(GREEN)●$(NC)"; \
+			echo "$$status" | grep -q "healthy" && icon="$(GREEN)✓$(NC)"; \
+			stats=$$(docker stats $$name --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null); \
+			cpu=$$(echo "$$stats" | cut -d'|' -f1); \
+			mem=$$(echo "$$stats" | cut -d'|' -f2 | sed 's/ //g'); \
+			printf "$$icon %-18s %-12s %-7s %-22s %s\n" "$$svc" "$$uptime" "$$cpu" "$$mem" "$$endpoint"; \
+		else \
+			printf "$(RED)○$(NC) %-18s %-12s %-7s %-22s %s\n" "$$svc" "$$status" "-" "-" "$$endpoint"; \
+		fi \
+	done
+	@echo "───────────────────────────────────────────────────────────────────────────────────────────"
+	@echo ""
+	@echo "$(BLUE)Quick Links:$(NC)  http://localhost (gateway)  |  http://localhost/docs (API docs)"
 	@echo ""
 
 urls:

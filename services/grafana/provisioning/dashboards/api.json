@@ -1,0 +1,130 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "content": "# Forge API\nEndpoint performance, errors, and request metrics", "mode": "markdown" },
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }, "unit": "reqps" } },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 2 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "sum(rate(forge_http_requests_total[1m]))", "refId": "A" }],
+      "title": "Request Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.1 }, { "color": "red", "value": 0.5 }] }, "unit": "s" } },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 2 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(forge_http_request_duration_seconds_bucket[5m])) by (le))", "refId": "A" }],
+      "title": "P95 Latency",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 0.01 }, { "color": "red", "value": 0.05 }] }, "unit": "percentunit" } },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 2 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "sum(rate(forge_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(forge_http_requests_total[5m]))", "refId": "A" }],
+      "title": "Error Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }, "unit": "short" } },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 2 },
+      "id": 5,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "forge_http_requests_in_flight", "refId": "A" }],
+      "title": "In-Flight Requests",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1 }, "unit": "reqps" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "id": 10,
+      "options": { "legend": { "calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [{ "expr": "sum(rate(forge_http_requests_total[1m])) by (endpoint)", "legendFormat": "{{endpoint}}", "refId": "A" }],
+      "title": "Request Rate by Endpoint",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1 }, "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "id": 11,
+      "options": { "legend": { "calcs": ["mean", "p95"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(forge_http_request_duration_seconds_bucket[5m])) by (le, endpoint))", "legendFormat": "p50 {{endpoint}}", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum(rate(forge_http_request_duration_seconds_bucket[5m])) by (le, endpoint))", "legendFormat": "p95 {{endpoint}}", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum(rate(forge_http_request_duration_seconds_bucket[5m])) by (le, endpoint))", "legendFormat": "p99 {{endpoint}}", "refId": "C" }
+      ],
+      "title": "Latency Percentiles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "bars", "fillOpacity": 80 }, "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 12,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(rate(forge_http_requests_total{status=~\"2..\"}[1m]))", "legendFormat": "2xx", "refId": "A" },
+        { "expr": "sum(rate(forge_http_requests_total{status=~\"3..\"}[1m]))", "legendFormat": "3xx", "refId": "B" },
+        { "expr": "sum(rate(forge_http_requests_total{status=~\"4..\"}[1m]))", "legendFormat": "4xx", "refId": "C" },
+        { "expr": "sum(rate(forge_http_requests_total{status=~\"5..\"}[1m]))", "legendFormat": "5xx", "refId": "D" }
+      ],
+      "title": "Status Codes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1 }, "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "id": 13,
+      "options": { "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(forge_db_query_duration_seconds_bucket[5m])) by (le))", "legendFormat": "DB p95", "refId": "A" },
+        { "expr": "histogram_quantile(0.95, sum(rate(forge_cache_operation_duration_seconds_bucket[5m])) by (le))", "legendFormat": "Cache p95", "refId": "B" }
+      ],
+      "title": "Backend Latency (DB & Cache)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+      "id": 14,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": false },
+      "targets": [{ "expr": "{service=\"api\"} | json | level=\"error\"", "refId": "A" }],
+      "title": "Error Logs",
+      "type": "logs"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "tags": ["forge", "api"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Forge API",
+  "uid": "forge-api",
+  "version": 1
+}
+

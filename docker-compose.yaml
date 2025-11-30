@@ -1,41 +1,40 @@
 # Forge - Docker Compose
 # All services on forge-net network
+#
+# Enable/disable services via COMPOSE_PROFILES in .env:
+#   COMPOSE_PROFILES=db,cache,observability  (default: all enabled)
+#   COMPOSE_PROFILES=db,cache                (disable observability)
+#   COMPOSE_PROFILES=db                      (only database)
 
 services:
   # ==========================================================================
-  # NGINX GATEWAY
+  # CORE (always enabled)
   # ==========================================================================
   nginx:
     image: nginx:alpine
     container_name: forge-nginx
     ports:
-      - "80:80"
+      - "${NGINX_PORT:-80}:80"
     volumes:
       - ./services/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./data/routes:/etc/nginx/conf.d/dynamic
-    depends_on:
-      - api
-      - grafana
-      - prometheus
     networks:
       - forge-net
     restart: unless-stopped
+    mem_limit: ${NGINX_MEMORY:-50m}
 
-  # ==========================================================================
-  # FORGE API
-  # ==========================================================================
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
     container_name: forge-api
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8080}:8080"
     environment:
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
       - MYSQL_USER=root
-      - MYSQL_PASSWORD=forgeroot
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD:-forgeroot}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - LOKI_URL=http://loki:3100
@@ -43,73 +42,124 @@ services:
       - TEMPO_URL=http://tempo:4318
       - ROUTES_CONFIG=/app/data/routes/routes.yaml
       - NGINX_DYNAMIC_CONF=/app/data/routes/routes.conf
+      - PROMTAIL_SOURCES_CONFIG=/app/data/promtail/logsources.yaml
+      - PROMTAIL_DYNAMIC_CONF=/app/data/promtail/promtail-dynamic.yml
     volumes:
       - ./data/routes:/app/data/routes
+      - ./data/promtail:/app/data/promtail
       - /var/run/docker.sock:/var/run/docker.sock
-    depends_on:
-      - mysql
-      - redis
-      - loki
-      - prometheus
-      - tempo
     networks:
       - forge-net
     restart: unless-stopped
+    mem_limit: ${API_MEMORY:-100m}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ==========================================================================
-  # DATABASE
+  # DATABASE (profile: db)
   # ==========================================================================
   mysql:
+    profiles: ["db", "full"]
     image: mysql:8
     container_name: forge-mysql
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=forgeroot
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-forgeroot}
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./services/mysql/my.cnf:/etc/mysql/conf.d/forge.cnf:ro
+      - mysql-logs:/var/log/mysql
     networks:
       - forge-net
     restart: unless-stopped
+    mem_limit: ${MYSQL_MEMORY:-750m}
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  mysql-exporter:
+    profiles: ["db", "full"]
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: forge-mysql-exporter
+    environment:
+      - MYSQLD_EXPORTER_PASSWORD=${MYSQL_ROOT_PASSWORD:-forgeroot}
+    command:
+      - '--mysqld.address=mysql:3306'
+      - '--mysqld.username=root'
+      - '--no-collect.slave_status'
+      - '--collect.info_schema.processlist'
+      - '--collect.info_schema.innodb_metrics'
+      - '--collect.info_schema.tablestats'
+      - '--collect.info_schema.tables'
+      - '--collect.info_schema.userstats'
+      - '--collect.perf_schema.eventswaits'
+      - '--collect.perf_schema.file_events'
+      - '--collect.perf_schema.tableiowaits'
+      - '--collect.perf_schema.tablelocks'
+    networks:
+      - forge-net
+    restart: unless-stopped
+    mem_limit: 50m
+    depends_on:
+      mysql:
+        condition: service_healthy
+
   # ==========================================================================
-  # CACHE
+  # CACHE (profile: cache)
   # ==========================================================================
   redis:
+    profiles: ["cache", "full"]
     image: redis:7-alpine
     container_name: forge-redis
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     command: redis-server --appendonly yes
     volumes:
       - redis-data:/data
     networks:
       - forge-net
     restart: unless-stopped
+    mem_limit: ${REDIS_MEMORY:-100m}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  redis-exporter:
+    profiles: ["cache", "full"]
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: forge-redis-exporter
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    networks:
+      - forge-net
+    restart: unless-stopped
+    mem_limit: 50m
+    depends_on:
+      redis:
+        condition: service_healthy
+
   # ==========================================================================
-  # OBSERVABILITY
+  # OBSERVABILITY (profile: observability)
   # ==========================================================================
   grafana:
+    profiles: ["observability", "full"]
     image: grafana/grafana:11.3.0
     container_name: forge-grafana
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     environment:
       - GF_SERVER_ROOT_URL=http://localhost/services/grafana
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./services/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -117,12 +167,14 @@ services:
     networks:
       - forge-net
     restart: unless-stopped
+    mem_limit: ${GRAFANA_MEMORY:-100m}
 
   prometheus:
+    profiles: ["observability", "full"]
     image: prom/prometheus:v2.54.1
     container_name: forge-prometheus
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -135,12 +187,14 @@ services:
     networks:
       - forge-net
     restart: unless-stopped
+    mem_limit: ${PROMETHEUS_MEMORY:-100m}
 
   loki:
+    profiles: ["observability", "full"]
     image: grafana/loki:2.9.0
     container_name: forge-loki
     ports:
-      - "3100:3100"
+      - "${LOKI_PORT:-3100}:3100"
     command: -config.file=/etc/loki/loki.yml
     volumes:
       - ./services/loki/loki.yml:/etc/loki/loki.yml:ro
@@ -148,13 +202,15 @@ services:
     networks:
       - forge-net
     restart: unless-stopped
+    mem_limit: ${LOKI_MEMORY:-100m}
 
   tempo:
+    profiles: ["observability", "full"]
     image: grafana/tempo:2.6.1
     container_name: forge-tempo
     ports:
-      - "3200:3200"   # Query API
-      - "4318:4318"   # OTLP HTTP
+      - "${TEMPO_QUERY_PORT:-3200}:3200"   # Query API
+      - "${TEMPO_PORT:-4318}:4318"         # OTLP HTTP
     command: -config.file=/etc/tempo/tempo.yml
     volumes:
       - ./services/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
@@ -162,6 +218,37 @@ services:
     networks:
       - forge-net
     restart: unless-stopped
+    mem_limit: ${TEMPO_MEMORY:-100m}
+
+  promtail:
+    profiles: ["observability", "full"]
+    image: grafana/promtail:2.9.0
+    container_name: forge-promtail
+    command: -config.file=/etc/promtail/promtail.yml
+    volumes:
+      - ./services/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - ./data/promtail:/etc/promtail/dynamic
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - forge-net
+    restart: unless-stopped
+    mem_limit: ${PROMTAIL_MEMORY:-50m}
+    depends_on:
+      - loki
+
+  nginx-exporter:
+    profiles: ["observability", "full"]
+    image: nginx/nginx-prometheus-exporter:1.3.0
+    container_name: forge-nginx-exporter
+    command:
+      - '--nginx.scrape-uri=http://nginx:8080/stub_status'
+    networks:
+      - forge-net
+    restart: unless-stopped
+    mem_limit: 50m
+    depends_on:
+      - nginx
 
 networks:
   forge-net:
@@ -169,6 +256,7 @@ networks:
 
 volumes:
   mysql-data:
+  mysql-logs:
   redis-data:
   grafana-data:
   prometheus-data:

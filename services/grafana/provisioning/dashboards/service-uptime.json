@@ -1,0 +1,206 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "content": "# Service Uptime\nAvailability and uptime tracking for all services", "mode": "markdown" },
+      "title": "",
+      "transparent": true,
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 2,
+          "max": 100,
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 95 }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 }] },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 2 },
+      "id": 2,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "avg_over_time(up{service=\"nginx\"}[24h]) * 100", "refId": "A" }],
+      "title": "Nginx (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 2,
+          "max": 100,
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 95 }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 }] },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 2 },
+      "id": 3,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "avg_over_time(up{service=\"api\"}[24h]) * 100", "refId": "A" }],
+      "title": "API (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 2,
+          "max": 100,
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 95 }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 }] },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 2 },
+      "id": 4,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "avg_over_time(up{service=\"mysql\"}[24h]) * 100", "refId": "A" }],
+      "title": "MySQL (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 2,
+          "max": 100,
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 95 }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 }] },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 2 },
+      "id": 5,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "avg_over_time(up{service=\"redis\"}[24h]) * 100", "refId": "A" }],
+      "title": "Redis (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 2,
+          "max": 100,
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 95 }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 }] },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 2 },
+      "id": 6,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "avg_over_time(up{service=\"grafana\"}[24h]) * 100", "refId": "A" }],
+      "title": "Grafana (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "decimals": 2,
+          "max": 100,
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "orange", "value": 95 }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 }] },
+          "unit": "percent"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 2 },
+      "id": 7,
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [{ "expr": "(avg_over_time(up{service=\"nginx\"}[24h]) + avg_over_time(up{service=\"api\"}[24h]) + avg_over_time(up{service=\"mysql\"}[24h]) + avg_over_time(up{service=\"redis\"}[24h])) / 4 * 100", "refId": "A" }],
+      "title": "Overall (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "axisCenteredZero": false, "axisLabel": "", "drawStyle": "line", "fillOpacity": 20, "lineWidth": 2, "spanNulls": false },
+          "mappings": [{ "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" }],
+          "max": 1,
+          "min": 0
+        }
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "id": 10,
+      "options": { "legend": { "calcs": [], "displayMode": "list", "placement": "right" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "up{service=\"nginx\"}", "legendFormat": "nginx", "refId": "A" },
+        { "expr": "up{service=\"api\"}", "legendFormat": "api", "refId": "B" },
+        { "expr": "up{service=\"mysql\"}", "legendFormat": "mysql", "refId": "C" },
+        { "expr": "up{service=\"redis\"}", "legendFormat": "redis", "refId": "D" },
+        { "expr": "up{service=\"grafana\"}", "legendFormat": "grafana", "refId": "E" },
+        { "expr": "up{service=\"loki\"}", "legendFormat": "loki", "refId": "F" },
+        { "expr": "up{service=\"tempo\"}", "legendFormat": "tempo", "refId": "G" }
+      ],
+      "title": "Availability Timeline",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
+      "id": 11,
+      "options": { "colorMode": "background", "graphMode": "area", "justifyMode": "center", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "targets": [
+        { "expr": "changes(up{service=\"nginx\"}[24h])", "legendFormat": "nginx", "refId": "A" },
+        { "expr": "changes(up{service=\"api\"}[24h])", "legendFormat": "api", "refId": "B" },
+        { "expr": "changes(up{service=\"mysql\"}[24h])", "legendFormat": "mysql", "refId": "C" },
+        { "expr": "changes(up{service=\"redis\"}[24h])", "legendFormat": "redis", "refId": "D" }
+      ],
+      "title": "State Changes (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": 99 }, { "color": "green", "value": 99.9 }] }, "unit": "percent" }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
+      "id": 12,
+      "options": { "displayMode": "lcd", "minVizHeight": 10, "minVizWidth": 0, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
+      "targets": [
+        { "expr": "avg_over_time(up{service=\"nginx\"}[7d]) * 100", "legendFormat": "nginx", "refId": "A" },
+        { "expr": "avg_over_time(up{service=\"api\"}[7d]) * 100", "legendFormat": "api", "refId": "B" },
+        { "expr": "avg_over_time(up{service=\"mysql\"}[7d]) * 100", "legendFormat": "mysql", "refId": "C" },
+        { "expr": "avg_over_time(up{service=\"redis\"}[7d]) * 100", "legendFormat": "redis", "refId": "D" },
+        { "expr": "avg_over_time(up{service=\"grafana\"}[7d]) * 100", "legendFormat": "grafana", "refId": "E" },
+        { "expr": "avg_over_time(up{service=\"loki\"}[7d]) * 100", "legendFormat": "loki", "refId": "F" }
+      ],
+      "title": "7-Day Uptime",
+      "type": "bargauge"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["forge", "uptime"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Service Uptime",
+  "uid": "service-uptime",
+  "version": 1
+}
+

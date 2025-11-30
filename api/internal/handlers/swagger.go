@@ -48,40 +48,30 @@ func OpenAPISpec(w http.ResponseWriter, r *http.Request) {
   "paths": {
     "/health": {
       "get": {
-        "summary": "Health check",
+        "summary": "Service health check",
         "tags": ["System"],
+        "description": "Returns health status of all services",
         "responses": {
           "200": {
-            "description": "Service is healthy",
+            "description": "Health status",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "ok": {"type": "boolean"}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/info": {
-      "get": {
-        "summary": "System information",
-        "tags": ["System"],
-        "responses": {
-          "200": {
-            "description": "System info",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "version": {"type": "string"},
-                    "uptime": {"type": "string"},
-                    "services": {"type": "object"}
+                    "ok": {"type": "boolean", "description": "True if all services are healthy"},
+                    "uptime": {"type": "string", "description": "API uptime"},
+                    "services": {
+                      "type": "object",
+                      "description": "Health of each service",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "status": {"type": "string", "enum": ["healthy", "unhealthy"]},
+                          "message": {"type": "string"}
+                        }
+                      }
+                    }
                   }
                 }
               }
@@ -385,6 +375,110 @@ func OpenAPISpec(w http.ResponseWriter, r *http.Request) {
         "tags": ["Routes"],
         "responses": {
           "200": {"description": "nginx reloaded"}
+        }
+      }
+    },
+    "/system": {
+      "get": {
+        "summary": "Get detailed system status",
+        "tags": ["System"],
+        "description": "Returns container stats including CPU, memory, network, uptime, and recommendations",
+        "responses": {
+          "200": {
+            "description": "System information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "timestamp": {"type": "string"},
+                    "total_containers": {"type": "integer"},
+                    "running_count": {"type": "integer"},
+                    "containers": {"type": "object"},
+                    "recommendations": {"type": "array", "items": {"type": "string"}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/logs/sources": {
+      "get": {
+        "summary": "List log sources",
+        "tags": ["Log Sources"],
+        "description": "Returns all configured Promtail log sources",
+        "responses": {
+          "200": {
+            "description": "List of log sources",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sources": {"type": "array"},
+                    "count": {"type": "integer"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a log source",
+        "tags": ["Log Sources"],
+        "description": "Adds a custom log file path to Promtail and reloads",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string", "example": "myapp"},
+                  "path": {"type": "string", "example": "/var/log/myapp/*.log"},
+                  "labels": {"type": "object", "example": {"app": "myapp", "env": "prod"}}
+                },
+                "required": ["name", "path"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {"description": "Source added and Promtail reloaded"}
+        }
+      }
+    },
+    "/logs/sources/{name}": {
+      "get": {
+        "summary": "Get a log source",
+        "tags": ["Log Sources"],
+        "parameters": [
+          {"name": "name", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Log source details"}
+        }
+      },
+      "delete": {
+        "summary": "Delete a log source",
+        "tags": ["Log Sources"],
+        "parameters": [
+          {"name": "name", "in": "path", "required": true, "schema": {"type": "string"}}
+        ],
+        "responses": {
+          "200": {"description": "Source deleted"}
+        }
+      }
+    },
+    "/logs/sources/reload": {
+      "post": {
+        "summary": "Force Promtail reload",
+        "tags": ["Log Sources"],
+        "responses": {
+          "200": {"description": "Promtail reloaded"}
         }
       }
     }

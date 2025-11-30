@@ -1,28 +1,89 @@
 # Prometheus configuration for Forge
+#
+# Labels used:
+#   service  - Forge service name (nginx, api, mysql, redis, etc.)
+#   instance - Container name (forge-nginx, forge-api, etc.)
+#   job      - Prometheus job name
 
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  # Prometheus self-monitoring
+  # ==========================================================================
+  # PROMETHEUS (self-monitoring)
+  # ==========================================================================
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+        labels:
+          service: prometheus
+          instance: forge-prometheus
 
-  # Forge API
+  # ==========================================================================
+  # FORGE API (built-in metrics)
+  # ==========================================================================
   - job_name: 'forge-api'
     static_configs:
       - targets: ['api:8080']
-    metrics_path: /api/v1/metrics
+        labels:
+          service: api
+          instance: forge-api
+    metrics_path: /metrics
 
-  # Loki
+  # ==========================================================================
+  # NGINX (via nginx-exporter)
+  # ==========================================================================
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+        labels:
+          service: nginx
+          instance: forge-nginx
+
+  # ==========================================================================
+  # MYSQL (via mysqld-exporter)
+  # ==========================================================================
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+        labels:
+          service: mysql
+          instance: forge-mysql
+
+  # ==========================================================================
+  # REDIS (via redis-exporter)
+  # ==========================================================================
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: redis
+          instance: forge-redis
+
+  # ==========================================================================
+  # GRAFANA STACK
+  # ==========================================================================
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          service: grafana
+          instance: forge-grafana
+    metrics_path: /metrics
+
   - job_name: 'loki'
     static_configs:
       - targets: ['loki:3100']
+        labels:
+          service: loki
+          instance: forge-loki
+    metrics_path: /metrics
 
-  # Tempo
   - job_name: 'tempo'
     static_configs:
       - targets: ['tempo:3200']
-
+        labels:
+          service: tempo
+          instance: forge-tempo
+    metrics_path: /metrics
