@@ -6,6 +6,7 @@ Start the environment with: docker compose --profile full up -d
 """
 
 import os
+import re
 import uuid
 import pytest
 import httpx
@@ -15,6 +16,37 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from forge import Forge
+
+
+# Strict regex for validating SQL identifiers (database names, table names, etc.)
+# Allows letters, digits, underscores, and hyphens; must start with letter or underscore
+_VALID_SQL_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_-]*$")
+
+
+def _validate_sql_identifier(name: str, context: str = "identifier") -> str:
+    """
+    Validate a SQL identifier against a strict whitelist.
+    
+    Args:
+        name: The identifier to validate
+        context: Description for error messages (e.g., "database name")
+    
+    Returns:
+        The validated identifier (unchanged if valid)
+    
+    Raises:
+        ValueError: If the identifier contains invalid characters
+    """
+    if not name:
+        raise ValueError(f"SQL {context} cannot be empty")
+    if len(name) > 64:
+        raise ValueError(f"SQL {context} exceeds maximum length of 64 characters")
+    if not _VALID_SQL_IDENTIFIER_RE.match(name):
+        raise ValueError(
+            f"Invalid SQL {context} '{name}': must contain only letters, "
+            "digits, underscores, and hyphens, and must start with a letter or underscore"
+        )
+    return name
 
 
 # Configuration - can be overridden via environment variables
@@ -101,17 +133,20 @@ def cleanup_db(forge, test_db_name):
     Yields:
         str: The test database name
     """
+    # Validate database name to prevent SQL injection
+    safe_db_name = _validate_sql_identifier(test_db_name, "database name")
+    
     # Create test database
     try:
-        forge.db.execute(f"CREATE DATABASE IF NOT EXISTS {test_db_name}")
+        forge.db.execute(f"CREATE DATABASE IF NOT EXISTS {safe_db_name}")
     except Exception:
         pass
     
-    yield test_db_name
+    yield safe_db_name
     
     # Cleanup after test
     try:
-        forge.db.execute(f"DROP DATABASE IF EXISTS {test_db_name}")
+        forge.db.execute(f"DROP DATABASE IF EXISTS {safe_db_name}")
     except Exception:
         pass
 

@@ -43,16 +43,14 @@ class TestMySQLExporter:
         
         metrics = response.text
         
-        # Check for common MySQL metrics
+        # Check for common MySQL metrics (required for proper monitoring)
         expected_metrics = [
             "mysql_global_status_threads_connected",
             "mysql_global_status_queries",
         ]
         
         for metric in expected_metrics:
-            if metric not in metrics:
-                # Some metrics might not be available, log but don't fail
-                print(f"Warning: {metric} not found")
+            assert metric in metrics, f"Required MySQL metric '{metric}' not found"
 
     def test_mysql_exporter_innodb_metrics(self, http_client, mysql_exporter_url):
         """Test that MySQL exporter has InnoDB metrics."""
