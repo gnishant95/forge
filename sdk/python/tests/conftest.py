@@ -6,7 +6,6 @@ Start the environment with: docker compose --profile full up -d
 """
 
 import os
-import re
 import uuid
 import pytest
 import httpx
@@ -18,45 +17,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from forge import Forge
 
 
-# Strict regex for validating SQL identifiers (database names, table names, etc.)
-# Allows letters, digits, underscores, and hyphens; must start with letter or underscore
-_VALID_SQL_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_-]*$")
-
-
-def _validate_sql_identifier(name: str, context: str = "identifier") -> str:
-    """
-    Validate a SQL identifier against a strict whitelist.
-    
-    Args:
-        name: The identifier to validate
-        context: Description for error messages (e.g., "database name")
-    
-    Returns:
-        The validated identifier (unchanged if valid)
-    
-    Raises:
-        ValueError: If the identifier contains invalid characters
-    """
-    if not name:
-        raise ValueError(f"SQL {context} cannot be empty")
-    if len(name) > 64:
-        raise ValueError(f"SQL {context} exceeds maximum length of 64 characters")
-    if not _VALID_SQL_IDENTIFIER_RE.match(name):
-        raise ValueError(
-            f"Invalid SQL {context} '{name}': must contain only letters, "
-            "digits, underscores, and hyphens, and must start with a letter or underscore"
-        )
-    return name
-
-
 # Configuration - can be overridden via environment variables
 FORGE_HOST = os.getenv("FORGE_HOST", "localhost")
 FORGE_PORT = int(os.getenv("FORGE_PORT", "80"))
 
-# Direct service ports (for exporter tests that bypass nginx)
-MYSQL_EXPORTER_PORT = int(os.getenv("MYSQL_EXPORTER_PORT", "9104"))
-REDIS_EXPORTER_PORT = int(os.getenv("REDIS_EXPORTER_PORT", "9121"))
-NGINX_EXPORTER_PORT = int(os.getenv("NGINX_EXPORTER_PORT", "9113"))
+# Direct service ports for observability stack
+# These are exposed to host and configurable via env
 PROMETHEUS_PORT = int(os.getenv("PROMETHEUS_PORT", "9090"))
 LOKI_PORT = int(os.getenv("LOKI_PORT", "3100"))
 
@@ -106,6 +72,8 @@ def test_db_name(test_id):
     return f"forge_{test_id}"
 
 
+
+
 @pytest.fixture
 def cleanup_cache(forge, test_id):
     """
@@ -133,22 +101,16 @@ def cleanup_db(forge, test_db_name):
     Yields:
         str: The test database name
     """
-    # Validate database name to prevent SQL injection
-    safe_db_name = _validate_sql_identifier(test_db_name, "database name")
-    
     # Create test database
-    try:
-        forge.db.execute(f"CREATE DATABASE IF NOT EXISTS {safe_db_name}")
-    except Exception:
-        pass
+    forge.db.execute(f"CREATE DATABASE IF NOT EXISTS {test_db_name}")
     
-    yield safe_db_name
+    yield test_db_name
     
     # Cleanup after test
     try:
-        forge.db.execute(f"DROP DATABASE IF EXISTS {safe_db_name}")
+        forge.db.execute(f"DROP DATABASE IF EXISTS {test_db_name}")
     except Exception:
-        pass
+        pass  # Best effort cleanup
 
 
 @pytest.fixture
@@ -199,24 +161,6 @@ def prometheus_url():
 def loki_url():
     """URL for direct Loki access."""
     return f"http://{FORGE_HOST}:{LOKI_PORT}"
-
-
-@pytest.fixture(scope="session")
-def mysql_exporter_url():
-    """URL for MySQL exporter metrics."""
-    return f"http://{FORGE_HOST}:{MYSQL_EXPORTER_PORT}"
-
-
-@pytest.fixture(scope="session")
-def redis_exporter_url():
-    """URL for Redis exporter metrics."""
-    return f"http://{FORGE_HOST}:{REDIS_EXPORTER_PORT}"
-
-
-@pytest.fixture(scope="session")
-def nginx_exporter_url():
-    """URL for Nginx exporter metrics."""
-    return f"http://{FORGE_HOST}:{NGINX_EXPORTER_PORT}"
 
 
 def pytest_configure(config):

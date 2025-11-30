@@ -50,9 +50,8 @@ class TestRouteCreation:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/test/{test_id}",
-                "upstream": "http://httpbin.org",
-                "methods": ["GET", "POST"]
+                "path": f"/test/{test_id}/",
+                "target": "http://httpbin.org"
             }
         )
         
@@ -70,8 +69,8 @@ class TestRouteCreation:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/strip/{test_id}",
-                "upstream": "http://example.com",
+                "path": f"/strip/{test_id}/",
+                "target": "http://example.com",
                 "strip_prefix": True
             }
         )
@@ -106,47 +105,51 @@ class TestRouteCreation:
         # Should fail without path
         assert response.status_code == 400
 
-    def test_add_route_requires_upstream(self, http_client, forge):
-        """Test that adding a route requires an upstream."""
+    def test_add_route_requires_target(self, http_client, forge):
+        """Test that adding a route requires a target."""
         response = http_client.post(
             f"{forge.base_url}/api/v1/routes",
             json={
-                "name": "test_no_upstream",
-                "path": "/test"
+                "name": "test_no_target",
+                "path": "/test/"
             }
         )
         
-        # Should fail without upstream
+        # Should fail without target
         assert response.status_code == 400
 
     def test_add_duplicate_route_updates(self, http_client, forge, cleanup_routes, test_id):
         """Test that adding a duplicate route name updates the existing route."""
-        route_name = f"test_duplicate_{test_id}"
+        route_name = f"dup_{test_id}"
         cleanup_routes.append(route_name)
         
-        # Add first route
+        # Add first route (use resolvable hostnames)
         response1 = http_client.post(
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/dup/{test_id}",
-                "upstream": "http://first.example.com"
+                "path": "/duptest/",
+                "target": "http://example.com"
             }
         )
-        assert response1.status_code == 201
+        assert response1.status_code == 201, f"First route creation failed: {response1.text}"
         
-        # Add second route with same name
+        # Add second route with same name (should update)
         response2 = http_client.post(
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/dup/{test_id}",
-                "upstream": "http://second.example.com"
+                "path": "/duptest/",
+                "target": "http://httpbin.org"
             }
         )
+        assert response2.status_code == 201, f"Route update failed: {response2.text}"
         
-        # Should succeed (update)
-        assert response2.status_code == 201
+        # Verify it was updated
+        get_response = http_client.get(f"{forge.base_url}/api/v1/routes/{route_name}")
+        assert get_response.status_code == 200
+        data = get_response.json()
+        assert data.get("target") == "http://httpbin.org"
 
 
 class TestRouteRetrieval:
@@ -162,8 +165,8 @@ class TestRouteRetrieval:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/get/{test_id}",
-                "upstream": "http://example.com"
+                "path": f"/get/{test_id}/",
+                "target": "http://example.com"
             }
         )
         
@@ -193,8 +196,8 @@ class TestRouteDeletion:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/delete/{test_id}",
-                "upstream": "http://example.com"
+                "path": f"/delete/{test_id}/",
+                "target": "http://example.com"
             }
         )
         
@@ -220,8 +223,8 @@ class TestRouteDeletion:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/deleted/{test_id}",
-                "upstream": "http://example.com"
+                "path": f"/deleted/{test_id}/",
+                "target": "http://example.com"
             }
         )
         
@@ -253,8 +256,8 @@ class TestNginxReload:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/reload/{test_id}",
-                "upstream": "http://example.com"
+                "path": f"/reload/{test_id}/",
+                "target": "http://example.com"
             }
         )
         
@@ -278,13 +281,9 @@ class TestRouteConfiguration:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/full/{test_id}",
-                "upstream": "http://example.com",
-                "methods": ["GET", "POST", "PUT", "DELETE"],
-                "strip_prefix": True,
-                "headers": {
-                    "X-Custom-Header": "test-value"
-                }
+                "path": f"/full/{test_id}/",
+                "target": "http://example.com",
+                "strip_prefix": True
             }
         )
         
@@ -306,8 +305,8 @@ class TestRouteConfiguration:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/default/{test_id}",
-                "upstream": "http://example.com"
+                "path": f"/default/{test_id}/",
+                "target": "http://example.com"
             }
         )
         
@@ -327,8 +326,8 @@ class TestRoutePersistence:
             f"{forge.base_url}/api/v1/routes",
             json={
                 "name": route_name,
-                "path": f"/persist/{test_id}",
-                "upstream": "http://example.com"
+                "path": f"/persist/{test_id}/",
+                "target": "http://example.com"
             }
         )
         

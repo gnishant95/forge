@@ -24,7 +24,9 @@ class TestDatabaseQuery:
         assert result["row_count"] >= 0
         
         # Should have at least information_schema
-        databases = [row[0] for row in result["rows"]]
+        # Rows are returned as dicts with column names as keys
+        col_name = result["columns"][0]  # e.g., "Database"
+        databases = [row["values"][col_name] for row in result["rows"]]
         assert "information_schema" in databases
 
     def test_query_with_database(self, forge, cleanup_db):
@@ -164,10 +166,7 @@ class TestSQLAlchemyIntegration:
 
     def test_create_engine(self, forge, cleanup_db):
         """Test creating SQLAlchemy engine."""
-        try:
-            from sqlalchemy import create_engine, text
-        except ImportError:
-            pytest.skip("SQLAlchemy not installed")
+        from sqlalchemy import create_engine, text
         
         db_name = cleanup_db
         engine = forge.db.engine(database=db_name)
@@ -182,10 +181,7 @@ class TestSQLAlchemyIntegration:
 
     def test_sqlalchemy_create_table(self, forge, cleanup_db):
         """Test creating table via SQLAlchemy."""
-        try:
-            from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, text
-        except ImportError:
-            pytest.skip("SQLAlchemy not installed")
+        from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, text
         
         db_name = cleanup_db
         engine = forge.db.engine(database=db_name)
@@ -209,10 +205,7 @@ class TestSQLAlchemyIntegration:
 
     def test_sqlalchemy_crud_operations(self, forge, cleanup_db):
         """Test CRUD operations via SQLAlchemy."""
-        try:
-            from sqlalchemy import create_engine, text
-        except ImportError:
-            pytest.skip("SQLAlchemy not installed")
+        from sqlalchemy import create_engine, text
         
         db_name = cleanup_db
         engine = forge.db.engine(database=db_name)
@@ -262,7 +255,8 @@ class TestDatabaseIsolation:
         
         # Verify it exists
         result = forge.db.query("SHOW DATABASES")
-        databases = [row[0] for row in result["rows"]]
+        col_name = result["columns"][0]
+        databases = [row["values"][col_name] for row in result["rows"]]
         assert test_db_name in databases
         
         # Cleanup
@@ -279,6 +273,7 @@ class TestDatabaseIsolation:
         
         # Table should exist in test database
         result = forge.db.query(f"SHOW TABLES FROM {db_name}")
-        tables = [row[0] for row in result["rows"]]
+        col_name = result["columns"][0]
+        tables = [row["values"][col_name] for row in result["rows"]]
         assert "isolated_test" in tables
 

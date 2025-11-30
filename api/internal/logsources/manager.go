@@ -361,7 +361,9 @@ func (m *Manager) Delete(name string) error {
 
 // ReloadPromtail sends SIGHUP to Promtail to reload config
 func (m *Manager) ReloadPromtail() error {
-	cmd := exec.Command("docker", "exec", "forge-promtail", "kill", "-HUP", "1")
+	// Use docker kill to send signal from outside the container
+	// (avoids needing kill binary inside the container)
+	cmd := exec.Command("docker", "kill", "-s", "HUP", "forge-promtail")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("promtail reload failed: %s - %w", string(output), err)

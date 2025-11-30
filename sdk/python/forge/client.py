@@ -5,9 +5,19 @@ Main Forge client
 import requests
 from typing import Optional, Dict, Any
 
+from importlib.metadata import version, PackageNotFoundError
+
 from .db import DatabaseClient
 from .cache import CacheClient
 from .observe import LogsClient, MetricsClient, TracesClient
+
+
+def _get_version() -> str:
+    """Get package version from metadata or fallback."""
+    try:
+        return version("forge-sdk")
+    except PackageNotFoundError:
+        return "0.1.0"
 
 
 class Forge:
@@ -85,8 +95,15 @@ class Forge:
             System info including version, uptime, and service statuses
         """
         if self._info_cache is None or refresh:
-            response = self._request("GET", "/info")
-            self._info_cache = response.json()
+            # Use health endpoint which provides uptime and service statuses
+            response = self._request("GET", "/health")
+            health_data = response.json()
+            self._info_cache = {
+                "version": _get_version(),
+                "uptime": health_data.get("uptime", ""),
+                "services": health_data.get("services", {}),
+                "ok": health_data.get("ok", False),
+            }
         return self._info_cache
     
     def __repr__(self) -> str:

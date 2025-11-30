@@ -29,13 +29,30 @@ func NewRedisClient() (*RedisClient, error) {
 		DB:       0,
 	})
 	
-	// Test connection
+	// Retry connection with backoff (Redis might still be starting)
 	ctx := context.Background()
-	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, err
+	maxRetries := 10
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		if err := client.Ping(ctx).Err(); err == nil {
+	return &RedisClient{client: client}, nil
+		} else {
+			lastErr = err
+		}
+		
+		// Wait before retrying (1s, 2s, 3s, ... up to 5s)
+		waitTime := time.Duration(min(i+1, 5)) * time.Second
+		time.Sleep(waitTime)
 	}
 	
-	return &RedisClient{client: client}, nil
+	return nil, lastErr
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (c *RedisClient) Ping(ctx context.Context) error {

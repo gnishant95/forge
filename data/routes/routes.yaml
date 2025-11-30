@@ -1,1 +1,5 @@
-routes: []
+routes:
+    - name: test_strip_test_c5736674
+      path: /strip/test_c5736674/
+      target: http://example.com
+      strip_prefix: true

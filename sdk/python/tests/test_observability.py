@@ -105,39 +105,42 @@ class TestLogVerification:
             verification="true"
         )
         
-        # Wait for log to be ingested
-        time.sleep(3)
-        
-        # Query Loki
+        # Retry querying Loki with backoff (logs take time to ingest)
         query = '{job="forge"} |= "' + unique_marker + '"'
-        response = http_client.get(
-            f"{loki_url}/loki/api/v1/query_range",
-            params={
-                "query": query,
-                "limit": 10,
-                "start": str(int((time.time() - 60) * 1e9)),  # Last minute
-                "end": str(int(time.time() * 1e9))
-            }
-        )
+        found = False
+        last_error = None
         
-        if response.status_code == 200:
+        for attempt in range(5):  # Try 5 times
+            time.sleep(2)  # Wait 2 seconds between attempts
+            
+            response = http_client.get(
+                f"{loki_url}/loki/api/v1/query_range",
+                params={
+                    "query": query,
+                    "limit": 10,
+                    "start": str(int((time.time() - 120) * 1e9)),  # Last 2 minutes
+                    "end": str(int(time.time() * 1e9))
+                }
+            )
+            
+            assert response.status_code == 200, f"Loki query failed: {response.text}"
+            
             data = response.json()
             result = data.get("data", {}).get("result", [])
             
             # Check if we found the log
-            found = False
             for stream in result:
                 for value in stream.get("values", []):
                     if unique_marker in value[1]:
                         found = True
                         break
+                if found:
+                    break
             
-            # Note: This might not find the log immediately due to ingestion delay
-            # We mark as skipped if not found rather than failing
-            if not found:
-                pytest.skip("Log not found in Loki yet (ingestion delay)")
-        else:
-            pytest.skip(f"Loki query failed: {response.status_code}")
+            if found:
+                break
+        
+        assert found, f"Log with marker '{unique_marker}' not found in Loki after 5 attempts"
 
 
 class TestMetrics:

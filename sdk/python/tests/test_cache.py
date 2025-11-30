@@ -184,10 +184,7 @@ class TestRedisClientIntegration:
 
     def test_get_redis_client(self, forge):
         """Test getting Redis client from SDK."""
-        try:
-            import redis
-        except ImportError:
-            pytest.skip("redis package not installed")
+        import redis
         
         client = forge.cache.client()
         
@@ -198,10 +195,7 @@ class TestRedisClientIntegration:
 
     def test_redis_client_operations(self, forge, test_id):
         """Test operations via Redis client."""
-        try:
-            import redis
-        except ImportError:
-            pytest.skip("redis package not installed")
+        import redis
         
         client = forge.cache.client()
         key = f"redis_client_test_{test_id}"
@@ -223,10 +217,7 @@ class TestRedisClientIntegration:
 
     def test_redis_client_data_structures(self, forge, test_id):
         """Test Redis data structures via client."""
-        try:
-            import redis
-        except ImportError:
-            pytest.skip("redis package not installed")
+        import redis
         
         client = forge.cache.client()
         

@@ -187,7 +187,7 @@ services:
     networks:
       - forge-net
     restart: unless-stopped
-    mem_limit: ${PROMETHEUS_MEMORY:-100m}
+    mem_limit: ${PROMETHEUS_MEMORY:-512m}
 
   loki:
     profiles: ["observability", "full"]

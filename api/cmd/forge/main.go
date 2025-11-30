@@ -70,6 +70,7 @@ func main() {
 	// REST endpoints
 	mux.HandleFunc("/api/v1/health", handlers.HealthREST(forgeHandler))
 	mux.HandleFunc("/api/v1/db/query", handlers.QueryREST(dbHandler))
+	mux.HandleFunc("/api/v1/db/execute", handlers.ExecuteREST(dbHandler))
 	mux.HandleFunc("/api/v1/db/info", handlers.DBInfoREST(dbHandler))
 	mux.HandleFunc("/api/v1/cache/", handlers.CacheREST(cacheHandler))
 	mux.HandleFunc("/api/v1/cache/info", handlers.CacheInfoREST(cacheHandler))

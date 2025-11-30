@@ -130,3 +130,27 @@ func DBInfoREST(h *DatabaseHandler) http.HandlerFunc {
 	}
 }
 
+func ExecuteREST(h *DatabaseHandler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		
+		var req forgev1.ExecuteRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		
+		resp, err := h.Execute(r.Context(), connect.NewRequest(&req))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp.Msg)
+	}
+}
+

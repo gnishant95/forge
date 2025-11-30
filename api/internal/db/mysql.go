@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -38,12 +39,29 @@ func NewMySQLClient() (*MySQLClient, error) {
 		return nil, err
 	}
 	
-	// Test connection
-	if err := db.Ping(); err != nil {
-		return nil, err
+	// Retry connection with backoff (MySQL might still be starting)
+	maxRetries := 10
+	var lastErr error
+	for i := 0; i < maxRetries; i++ {
+		if err := db.Ping(); err == nil {
+			return &MySQLClient{db: db}, nil
+		} else {
+			lastErr = err
 	}
 	
-	return &MySQLClient{db: db}, nil
+		// Wait before retrying (1s, 2s, 3s, ... up to 5s)
+		waitTime := time.Duration(min(i+1, 5)) * time.Second
+		time.Sleep(waitTime)
+	}
+	
+	return nil, fmt.Errorf("failed to connect after %d retries: %w", maxRetries, lastErr)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (c *MySQLClient) Ping(ctx context.Context) error {
