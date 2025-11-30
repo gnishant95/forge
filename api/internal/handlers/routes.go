@@ -130,9 +130,10 @@ func (h *RoutesHandler) HandleRoutes(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		// /api/v1/routes/{name}
-		if r.Method == "DELETE" {
+		switch r.Method {
+		case "DELETE":
 			h.DeleteRoute(w, r)
-		} else if r.Method == "GET" {
+		case "GET":
 			// Get single route
 			name := strings.TrimPrefix(path, "/")
 			name = strings.TrimSuffix(name, "/")
@@ -143,9 +144,8 @@ func (h *RoutesHandler) HandleRoutes(w http.ResponseWriter, r *http.Request) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(route)
-		} else {
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
 }
-

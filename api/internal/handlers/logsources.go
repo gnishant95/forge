@@ -53,7 +53,7 @@ func (h *LogSourcesHandler) HandleLogSources(w http.ResponseWriter, r *http.Requ
 }
 
 // listSources returns all configured log sources
-func (h *LogSourcesHandler) listSources(w http.ResponseWriter, r *http.Request) {
+func (h *LogSourcesHandler) listSources(w http.ResponseWriter, _ *http.Request) {
 	sources := h.manager.List()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -64,7 +64,7 @@ func (h *LogSourcesHandler) listSources(w http.ResponseWriter, r *http.Request) 
 }
 
 // getSource returns a specific log source
-func (h *LogSourcesHandler) getSource(w http.ResponseWriter, r *http.Request, name string) {
+func (h *LogSourcesHandler) getSource(w http.ResponseWriter, _ *http.Request, name string) {
 	source, found := h.manager.Get(name)
 	if !found {
 		http.Error(w, "Source not found", http.StatusNotFound)
@@ -129,7 +129,7 @@ func (h *LogSourcesHandler) addSource(w http.ResponseWriter, r *http.Request) {
 }
 
 // deleteSource removes a log source
-func (h *LogSourcesHandler) deleteSource(w http.ResponseWriter, r *http.Request, name string) {
+func (h *LogSourcesHandler) deleteSource(w http.ResponseWriter, _ *http.Request, name string) {
 	if err := h.manager.Delete(name); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
@@ -151,7 +151,7 @@ func (h *LogSourcesHandler) deleteSource(w http.ResponseWriter, r *http.Request,
 }
 
 // reloadPromtail forces a Promtail config reload
-func (h *LogSourcesHandler) reloadPromtail(w http.ResponseWriter, r *http.Request) {
+func (h *LogSourcesHandler) reloadPromtail(w http.ResponseWriter, _ *http.Request) {
 	if err := h.manager.ReloadPromtail(); err != nil {
 		http.Error(w, "Reload failed: "+err.Error(), http.StatusInternalServerError)
 		return

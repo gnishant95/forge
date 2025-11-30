@@ -83,17 +83,6 @@ func (m *Manager) load() error {
 	return nil
 }
 
-// save writes sources to the YAML file
-func (m *Manager) save() error {
-	sf := sourcesFile{Sources: m.sources}
-	data, err := yaml.Marshal(&sf)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(m.sourcesPath, data, 0644)
-}
-
 // generateSourcesContent creates the sources file content without writing
 func (m *Manager) generateSourcesContent() ([]byte, error) {
 	sf := sourcesFile{Sources: m.sources}
@@ -141,6 +130,8 @@ func (m *Manager) generatePromtailContent() ([]byte, error) {
 
 // atomicPersist writes both sources and Promtail config atomically using temp files.
 // If any step fails, temp files are cleaned up and the original files remain unchanged.
+// The rename order prioritizes promtail config first (the service config), then sources.
+// If the second rename fails, we attempt to restore the first file from backup.
 func (m *Manager) atomicPersist() error {
 	// Generate both contents first (in-memory, no I/O side effects)
 	sourcesContent, err := m.generateSourcesContent()
@@ -157,66 +148,123 @@ func (m *Manager) atomicPersist() error {
 	sourcesDir := filepath.Dir(m.sourcesPath)
 	promtailDir := filepath.Dir(m.dynamicConfPath)
 
+	// Track temp files for cleanup
+	var tempFiles []string
+	cleanupTemps := func() {
+		for _, f := range tempFiles {
+			os.Remove(f) // Best effort cleanup, ignore errors
+		}
+	}
+
 	sourcesTmp, err := os.CreateTemp(sourcesDir, ".sources-*.tmp")
 	if err != nil {
 		return fmt.Errorf("failed to create temp sources file: %w", err)
 	}
 	sourcesTmpPath := sourcesTmp.Name()
-	defer func() {
-		sourcesTmp.Close()
-		os.Remove(sourcesTmpPath) // Clean up if still exists (no-op after successful rename)
-	}()
+	tempFiles = append(tempFiles, sourcesTmpPath)
 
 	promtailTmp, err := os.CreateTemp(promtailDir, ".promtail-*.tmp")
 	if err != nil {
+		sourcesTmp.Close()
+		cleanupTemps()
 		return fmt.Errorf("failed to create temp promtail file: %w", err)
 	}
 	promtailTmpPath := promtailTmp.Name()
-	defer func() {
-		promtailTmp.Close()
-		os.Remove(promtailTmpPath) // Clean up if still exists
-	}()
+	tempFiles = append(tempFiles, promtailTmpPath)
 
 	// Write to temp files
 	if _, err := sourcesTmp.Write(sourcesContent); err != nil {
+		sourcesTmp.Close()
+		promtailTmp.Close()
+		cleanupTemps()
 		return fmt.Errorf("failed to write temp sources file: %w", err)
 	}
 	if err := sourcesTmp.Chmod(0644); err != nil {
+		sourcesTmp.Close()
+		promtailTmp.Close()
+		cleanupTemps()
 		return fmt.Errorf("failed to set temp sources file permissions: %w", err)
 	}
 	if err := sourcesTmp.Sync(); err != nil {
+		sourcesTmp.Close()
+		promtailTmp.Close()
+		cleanupTemps()
 		return fmt.Errorf("failed to sync temp sources file: %w", err)
 	}
 	if err := sourcesTmp.Close(); err != nil {
+		promtailTmp.Close()
+		cleanupTemps()
 		return fmt.Errorf("failed to close temp sources file: %w", err)
 	}
 
 	if _, err := promtailTmp.Write(promtailContent); err != nil {
+		promtailTmp.Close()
+		cleanupTemps()
 		return fmt.Errorf("failed to write temp promtail file: %w", err)
 	}
 	if err := promtailTmp.Chmod(0644); err != nil {
+		promtailTmp.Close()
+		cleanupTemps()
 		return fmt.Errorf("failed to set temp promtail file permissions: %w", err)
 	}
 	if err := promtailTmp.Sync(); err != nil {
+		promtailTmp.Close()
+		cleanupTemps()
 		return fmt.Errorf("failed to sync temp promtail file: %w", err)
 	}
 	if err := promtailTmp.Close(); err != nil {
+		cleanupTemps()
 		return fmt.Errorf("failed to close temp promtail file: %w", err)
 	}
 
-	// Atomic renames - if either fails, we may have partial state,
-	// but the defers will clean up temp files
-	if err := os.Rename(sourcesTmpPath, m.sourcesPath); err != nil {
-		return fmt.Errorf("failed to rename sources file: %w", err)
+	// Create backup of existing promtail config before any renames (if it exists)
+	var promtailBackupPath string
+	if _, err := os.Stat(m.dynamicConfPath); err == nil {
+		promtailBackup, err := os.CreateTemp(promtailDir, ".promtail-backup-*.tmp")
+		if err != nil {
+			cleanupTemps()
+			return fmt.Errorf("failed to create promtail backup file: %w", err)
+		}
+		promtailBackupPath = promtailBackup.Name()
+		promtailBackup.Close()
+		tempFiles = append(tempFiles, promtailBackupPath)
+
+		// Copy existing promtail config to backup
+		existingContent, err := os.ReadFile(m.dynamicConfPath)
+		if err != nil {
+			cleanupTemps()
+			return fmt.Errorf("failed to read existing promtail config for backup: %w", err)
+		}
+		if err := os.WriteFile(promtailBackupPath, existingContent, 0644); err != nil {
+			cleanupTemps()
+			return fmt.Errorf("failed to write promtail backup: %w", err)
+		}
 	}
 
+	// Atomic renames - promtail first (primary service config), then sources
+	// This order ensures promtail config is prioritized; if sources rename fails,
+	// we attempt to restore promtail from backup.
 	if err := os.Rename(promtailTmpPath, m.dynamicConfPath); err != nil {
-		// Sources file was already renamed; attempt to restore by reloading from disk
-		// This is a best-effort recovery - in practice this rename rarely fails
-		// if the first one succeeded (same filesystem)
+		cleanupTemps()
 		return fmt.Errorf("failed to rename promtail config file: %w", err)
 	}
 
+	if err := os.Rename(sourcesTmpPath, m.sourcesPath); err != nil {
+		// Promtail config was already renamed; attempt to restore from backup
+		renameErr := err
+		if promtailBackupPath != "" {
+			if restoreErr := os.Rename(promtailBackupPath, m.dynamicConfPath); restoreErr != nil {
+				// Critical: both rename failed and restore failed
+				cleanupTemps()
+				return fmt.Errorf("failed to rename sources file (%w) AND failed to restore promtail config from backup (%v); system may be in inconsistent state", renameErr, restoreErr)
+			}
+		}
+		cleanupTemps()
+		return fmt.Errorf("failed to rename sources file (promtail config restored): %w", renameErr)
+	}
+
+	// Success - clean up backup and any remaining temp files
+	cleanupTemps()
 	return nil
 }
 
@@ -309,47 +357,6 @@ func (m *Manager) Delete(name string) error {
 	}
 
 	return nil
-}
-
-// generatePromtailConfig creates the dynamic Promtail config file
-func (m *Manager) generatePromtailConfig() error {
-	config := promtailDynamicConfig{
-		ScrapeConfigs: make([]promtailScrapeConfig, 0, len(m.sources)),
-	}
-
-	for _, source := range m.sources {
-		labels := make(map[string]string)
-		labels["__path__"] = source.Path
-		labels["source"] = source.Name
-
-		// Add custom labels
-		for k, v := range source.Labels {
-			labels[k] = v
-		}
-
-		scrapeConfig := promtailScrapeConfig{
-			JobName: fmt.Sprintf("custom_%s", source.Name),
-			StaticConfigs: []promtailStatic{
-				{
-					Targets: []string{"localhost"},
-					Labels:  labels,
-				},
-			},
-		}
-
-		config.ScrapeConfigs = append(config.ScrapeConfigs, scrapeConfig)
-	}
-
-	data, err := yaml.Marshal(&config)
-	if err != nil {
-		return err
-	}
-
-	// Write with header comment
-	header := []byte("# Dynamic log sources - auto-generated by Forge API\n# Do not edit manually\n\n")
-	content := append(header, data...)
-
-	return os.WriteFile(m.dynamicConfPath, content, 0644)
 }
 
 // ReloadPromtail sends SIGHUP to Promtail to reload config

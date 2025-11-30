@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log"
@@ -149,11 +150,17 @@ func HealthREST(h *ForgeHandler) http.HandlerFunc {
 			Services: services,
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(response); err != nil {
+		var buf bytes.Buffer
+		if err := json.NewEncoder(&buf).Encode(response); err != nil {
 			log.Printf("failed to encode health response: %v", err)
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(buf.Bytes()); err != nil {
+			log.Printf("failed to write health response: %v", err)
 		}
 	}
 }
