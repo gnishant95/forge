@@ -6,9 +6,36 @@ Start the environment with: docker compose --profile full up -d
 """
 
 import os
+import re
 import uuid
 import pytest
 import httpx
+
+
+def validate_db_identifier(name: str) -> str:
+    """
+    Validate a database identifier to prevent SQL injection.
+    
+    Only allows letters, digits, underscores, and hyphens.
+    Raises ValueError if the identifier is invalid.
+    
+    Args:
+        name: The database identifier to validate
+        
+    Returns:
+        The validated identifier (unchanged if valid)
+        
+    Raises:
+        ValueError: If the identifier contains invalid characters
+    """
+    if not name:
+        raise ValueError("Database identifier cannot be empty")
+    if not re.match(r'^[A-Za-z0-9_-]+$', name):
+        raise ValueError(
+            f"Invalid database identifier '{name}': "
+            "only letters, digits, underscores, and hyphens are allowed"
+        )
+    return name
 
 # Add parent directory to path to import forge SDK
 import sys
@@ -101,14 +128,17 @@ def cleanup_db(forge, test_db_name):
     Yields:
         str: The test database name
     """
-    # Create test database
-    forge.db.execute(f"CREATE DATABASE IF NOT EXISTS {test_db_name}")
+    # Validate database name to prevent SQL injection
+    validated_name = validate_db_identifier(test_db_name)
     
-    yield test_db_name
+    # Create test database
+    forge.db.execute(f"CREATE DATABASE IF NOT EXISTS `{validated_name}`")
+    
+    yield validated_name
     
     # Cleanup after test
     try:
-        forge.db.execute(f"DROP DATABASE IF EXISTS {test_db_name}")
+        forge.db.execute(f"DROP DATABASE IF EXISTS `{validated_name}`")
     except Exception:
         pass  # Best effort cleanup
 

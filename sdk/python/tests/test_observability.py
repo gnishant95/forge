@@ -108,9 +108,8 @@ class TestLogVerification:
         # Retry querying Loki with backoff (logs take time to ingest)
         query = '{job="forge"} |= "' + unique_marker + '"'
         found = False
-        last_error = None
         
-        for attempt in range(5):  # Try 5 times
+        for _ in range(5):  # Try 5 times
             time.sleep(2)  # Wait 2 seconds between attempts
             
             response = http_client.get(

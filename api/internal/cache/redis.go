@@ -22,29 +22,34 @@ func NewRedisClient() (*RedisClient, error) {
 		port = "6379"
 	}
 	password := os.Getenv("REDIS_PASSWORD")
-	
+
 	client := redis.NewClient(&redis.Options{
 		Addr:     host + ":" + port,
 		Password: password,
 		DB:       0,
 	})
-	
+
 	// Retry connection with backoff (Redis might still be starting)
-	ctx := context.Background()
 	maxRetries := 10
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
-		if err := client.Ping(ctx).Err(); err == nil {
-	return &RedisClient{client: client}, nil
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := client.Ping(ctx).Err()
+		cancel()
+		if err == nil {
+			return &RedisClient{client: client}, nil
 		} else {
 			lastErr = err
 		}
-		
-		// Wait before retrying (1s, 2s, 3s, ... up to 5s)
-		waitTime := time.Duration(min(i+1, 5)) * time.Second
-		time.Sleep(waitTime)
+
+		// Wait before retrying (1s, 2s, 3s, ... up to 5s), but not after the last attempt
+		if i < maxRetries-1 {
+			waitTime := time.Duration(min(i+1, 5)) * time.Second
+			time.Sleep(waitTime)
+		}
 	}
-	
+
+	client.Close() // Clean up the client since we failed to connect
 	return nil, lastErr
 }
 
@@ -85,4 +90,3 @@ func (c *RedisClient) Delete(ctx context.Context, key string) (bool, error) {
 func (c *RedisClient) Close() error {
 	return c.client.Close()
 }
-
