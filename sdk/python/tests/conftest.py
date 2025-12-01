@@ -65,15 +65,44 @@ def forge():
     return Forge(host=FORGE_HOST, port=FORGE_PORT)
 
 
+class RetryTransport(httpx.HTTPTransport):
+    """HTTP transport with retry logic for transient connection errors."""
+    
+    RETRYABLE_EXCEPTIONS = (
+        httpx.RemoteProtocolError,
+        httpx.ConnectError,
+    )
+    
+    def __init__(self, retries: int = 3, **kwargs):
+        super().__init__(**kwargs)
+        self._retries = retries
+    
+    def handle_request(self, request):
+        last_exception = None
+        for attempt in range(self._retries + 1):
+            try:
+                return super().handle_request(request)
+            except self.RETRYABLE_EXCEPTIONS as e:
+                last_exception = e
+                if attempt < self._retries:
+                    continue
+                raise
+        raise last_exception
+
+
 @pytest.fixture(scope="session")
 def http_client():
     """
     Create an httpx client for direct API calls.
     
+    Uses retry transport to handle transient connection issues like
+    stale keep-alive connections being reused after the server closed them.
+    
     Returns:
         httpx.Client: HTTP client for direct requests
     """
-    with httpx.Client(timeout=30.0) as client:
+    transport = RetryTransport(retries=3)
+    with httpx.Client(timeout=30.0, transport=transport) as client:
         yield client
 
 
